@@ -8,14 +8,6 @@ import (
 
 func testEqStringSlices(a, b []string) bool {
 
-	if a == nil && b == nil {
-		return true
-	}
-
-	if a == nil || b == nil {
-		return false
-	}
-
 	if len(a) != len(b) {
 		return false
 	}
