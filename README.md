@@ -5,7 +5,7 @@ A golang program to transform bank statements to a CSV report that aggregates ex
 Here is an example. Given a statement file like this:
 
 ```
-01/12/2017,"-300.00",Tetsuya Restaruant
+01/12/2017,"-300.00",Auntie Eds Fine Dining
 15/11/2017,"-100.00",WOOLWORTHS
 15/12/2017,"-100.00",WOOLWORTHS
 16/12/2017,"10.00",WOOLWORTHS REFUND
@@ -16,8 +16,9 @@ Here is an example. Given a statement file like this:
 And a pattern file matching regular expressions to tags:
 
 ```
+#Patterm,Top-level category,Sub category
 Woolworths,Living Expenses,Groceries
-Tetsuya,Non-essential Expenses,Restaurant
+Auntie Eds,Non-essential Expenses,Restaurant
 UNITED ,Living Expenses,Fuel
 ```
 
@@ -31,4 +32,15 @@ Non-essential Expenses,Restaurant,0.00,-300.00,0.00
 ```
 
 From here this report can be imported into a spreadsheet and further analysed.
+
+
+## Building
+
+
+Ensure you have the following environment variables set appropriately: `GOPATH`, `GOBIN`.
+
+
+```
+$ go install cmd/spendtracker/spendtracker.go
+```
 
