@@ -9,7 +9,13 @@ import (
 	"time"
 )
 
-func ANZReaderFunc(filename string) ([]Transaction, error) {
+type ANZReader struct {
+	pdb *PatternDB
+}
+
+
+
+func (r ANZReader) CSVReader(filename string) ([]Transaction, error) {
 	var data []Transaction
 	dateForm := "02/01/2006"
 
@@ -50,8 +56,11 @@ func ANZReaderFunc(filename string) ([]Transaction, error) {
 
 			}
 			t.Line = TrimQuotes(elems[2])
-
-			data = append(data, t)
+			if r.pdb.matchAccountAliases(t.Line) == nil {
+				data = append(data, t)
+			} else {
+				fmt.Fprintf(os.Stderr, "Ignoring %s\n", t.Line)
+			}
 		}
 	}
 	return data, nil

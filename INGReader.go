@@ -2,14 +2,22 @@ package spendtracker
 
 import (
 	"bufio"
+	"encoding/csv"
 	"fmt"
+	"io"
+	"log"
 	"os"
 	"strconv"
-	"strings"
+
+	//	"strings"
 	"time"
 )
 
-func INGReaderFunc(filename string) ([]Transaction, error) {
+type INGReader struct {
+	pdb *PatternDB
+}
+
+func (r INGReader) CSVReader(filename string) ([]Transaction, error) {
 	var data []Transaction
 	dateForm := "02/01/2006"
 
@@ -22,37 +30,50 @@ func INGReaderFunc(filename string) ([]Transaction, error) {
 	}
 	defer file.Close()
 
+	csv := csv.NewReader(file)
+
 	scanner := bufio.NewScanner(file)
 	scanner.Split(bufio.ScanLines)
-	for scanner.Scan() {
-		line := scanner.Text()
-		elems := strings.Split(line, ",")
+
+	for {
+
+		record, err := csv.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		//first line of ING statements typically contains column headings
-		if elems[0] == "Date" {
+		if record[0] == "Date" {
 			continue
 		}
 
-		if len(elems) > 3 {
+		if len(record) > 3 {
 			t := Transaction{}
 
-			t.Timestamp, err = time.Parse(dateForm, elems[0])
+			t.Timestamp, err = time.Parse(dateForm, record[0])
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
 
 			//Line item
-			t.Line = TrimQuotes(elems[1])
+			t.Line = TrimQuotes(record[1])
+			if r.pdb.matchAccountAliases(t.Line) != nil {
+				fmt.Fprintf(os.Stderr, "Ignoring aliased pattern %s\n", t.Line)
+				continue
+			}
 
 			//Credit
-			tmpstr := TrimQuotes(elems[2])
+			tmpstr := TrimQuotes(record[2])
 			if len(tmpstr) == 0 {
 				t.Type = Debit
 				t.Credit = 0
 			} else {
 
-				tmpval, err := strconv.ParseFloat(TrimQuotes(elems[2]), 32)
+				tmpval, err := strconv.ParseFloat(TrimQuotes(record[2]), 32)
 				if err != nil {
 					fmt.Println(err)
 					continue
@@ -61,12 +82,12 @@ func INGReaderFunc(filename string) ([]Transaction, error) {
 			}
 
 			//Debit
-			tmpstr = TrimQuotes(elems[3])
+			tmpstr = TrimQuotes(record[3])
 			if len(tmpstr) == 0 {
 				t.Type = Credit
 				t.Debit = 0
 			} else {
-				tmpval, err := strconv.ParseFloat(TrimQuotes(elems[3]), 32)
+				tmpval, err := strconv.ParseFloat(TrimQuotes(record[3]), 32)
 				if err != nil {
 					fmt.Println(err)
 					continue

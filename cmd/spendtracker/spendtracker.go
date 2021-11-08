@@ -3,10 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
-	st "github.com/edwiny/spendtracker"
 	"io/ioutil"
 	"log"
 	"strings"
+
+	st "github.com/edwiny/spendtracker"
 )
 
 func expandDir(dirname, suffix string) []string {
@@ -35,7 +36,7 @@ func main() {
 	flag.StringVar(&optionANZDir, "inputdir-anz", "", "directory containing statement files from ANZ")
 	flag.StringVar(&optionINGDir, "inputdir-ing", "", "directory containing statement files from ING")
 	flag.StringVar(&optionPatternFile, "patternfile", "patterns.csv", "name of file that maps patterns to tags")
-	flag.StringVar(&optionAliasesFile, "aliasesfile", "aliases.csv", "name of file for identifying accounts that belong to you")
+	flag.StringVar(&optionAliasesFile, "aliasesfile", "aliases.csv", "name of file for identifying acco4unts that belong to you")
 	flag.StringVar(&optionPeriod, "period", "monthly", "period to aggregate to. One of weekly, monthly, yearly")
 
 	flag.Parse()
@@ -60,7 +61,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = tracker.ReadTransactions()
+	err = tracker.ReadTransactionsAll()
 	if err != nil {
 		log.Fatal(err)
 	}

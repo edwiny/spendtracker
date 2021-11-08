@@ -3,6 +3,7 @@ package spendtracker
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"os"
 	"regexp"
 	"strings"
@@ -27,8 +28,18 @@ type PatternDB struct {
 func (p *PatternDB) matchTags(line string) []string {
 
 	for i := 0; i < len(p.patterns); i++ {
-		if p.patterns[i].re.MatchString(line) {
+		if p.patterns[i].re != nil && p.patterns[i].re.MatchString(line) {
 			return (p.patterns[i].tags)
+		}
+	}
+	return nil
+}
+
+func (p *PatternDB) matchAccountAliases(line string) []string {
+
+	for i := 0; i < len(p.accountAliases); i++ {
+		if p.accountAliases[i].re.MatchString(line) {
+			return (p.accountAliases[i].tags)
 		}
 	}
 	return nil
@@ -41,10 +52,19 @@ func NewDB(patternsFile, aliasesFile string) (*PatternDB, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	pdb.patterns = append(pdb.patterns, Pattern{
+		regexStr: "",
+		re: nil,
+		tags: []string{UNKNOWN_CATEGORY, UNKNOWN_SUBCATEGORY},
+		
+	})
 	pdb.accountAliases, err = parsePatterns(aliasesFile)
 	if err != nil {
 		return nil, err
 	}
+
+
 
 	pdb.tags = make(map[TagCombo]bool)
 
@@ -74,6 +94,7 @@ func (p *PatternDB) Level1Tags() []string {
 	for k := range keys {
 		data = append(data, k)
 	}
+
 	return data
 }
 
@@ -84,6 +105,7 @@ func (p *PatternDB) Level2Tags(level1Tag string) []string {
 		if k.Level1Tag == level1Tag {
 			data = append(data, k.Level2Tag)
 		}
+
 	}
 	return data
 }
@@ -105,19 +127,29 @@ func parsePatterns(filename string) ([]Pattern, error) {
 		line := scanner.Text()
 		elems := strings.Split(line, ",")
 
-		if elems[0] == "pattern" {
+		if(strings.HasPrefix(line, "#") ||
+			len(strings.Trim(elems[0], " ")) == 0 ||
+			len(strings.Trim(elems[1], " ")) == 0 ) {
 			continue
 		}
 
-		if len(elems) > 1 {
+		if len(elems) >= 3 {
 			p := Pattern{}
-			p.regexStr = elems[0]
+			p.tags = make([]string, 2)
+			p.tags[0] = strings.Trim(elems[0], " ")
+			p.tags[1] = strings.Trim(elems[1], " ")
+			p.regexStr = strings.Trim(elems[2], " ")
+			if len(p.regexStr) == 0 {
+				continue
+			}
+				
+			
 			p.re, err = regexp.Compile("(?i)" + p.regexStr)
 			if err != nil {
 				return nil, errors.New("Invalid regex: " + p.regexStr)
 			}
-			p.tags = elems[1:]
 			data = append(data, p)
+			fmt.Fprintf(os.Stderr, "Loading [%s][%s] Regex %s\n", p.tags[0], p.tags[1], p.regexStr)
 		}
 	}
 	return data, nil

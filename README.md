@@ -16,7 +16,7 @@ Here is an example. Given a statement file like this:
 And a pattern file matching regular expressions to tags:
 
 ```
-#Patterm,Top-level category,Sub category
+#Pattern,Top-level category,Sub category
 Woolworths,Living Expenses,Groceries
 Auntie Eds,Non-essential Expenses,Restaurant
 UNITED ,Living Expenses,Fuel

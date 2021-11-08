@@ -2,9 +2,14 @@ package spendtracker
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"time"
 )
+
+
+const UNKNOWN_CATEGORY string = "Unknown"
+const UNKNOWN_SUBCATEGORY string = "Unknown"
 
 type Config struct {
 	ANZFiles, INGFiles        []string
@@ -22,6 +27,7 @@ type SpendTracker struct {
 	//index into the trns array, keyed by period, level 1 tag, and level 2 tag
 	idxTag2 map[IndexTag2Key][]int
 	trns    []Transaction
+	trnsMap map[TransactionKey]bool
 }
 
 type IndexTag1Key struct {
@@ -30,6 +36,10 @@ type IndexTag1Key struct {
 
 type IndexTag2Key struct {
 	period, level1tag, level2tag string
+}
+
+type StatementReader interface {
+	CSVReader(filename string) ([]Transaction, error)
 }
 
 func TrimQuotes(s string) string {
@@ -62,6 +72,7 @@ func New(cfg Config) *SpendTracker {
 	st.cfg = cfg
 	st.idxTag1 = make(map[IndexTag1Key][]int)
 	st.idxTag2 = make(map[IndexTag2Key][]int)
+	st.trnsMap = make(map[TransactionKey]bool)
 	if len(cfg.Period) == 0 {
 		st.cfg.Period = "monthly"
 	}
@@ -91,27 +102,19 @@ func NormaliseDate(timestamp time.Time, period string) string {
 	return ""
 }
 
-func (st *SpendTracker) ReadTransactions() error {
+//read in all the transactions from file
+//transactions are stored as an array in st.trns
+func (st *SpendTracker) ReadTransactionsAll() error {
+	anz_reader := ANZReader{pdb: st.pdb}
 
-	//read in all the transactions from file
 	for _, filename := range st.cfg.ANZFiles {
-		tmp_trns, err := ANZReaderFunc(filename)
-		fmt.Printf("%s: %d transactions\n", filename, len(tmp_trns))
-		if err != nil {
-			return err
-		}
-		st.trns = append(st.trns, tmp_trns...)
-
+		st.ReadTransactions(anz_reader, filename)
 	}
 
-	for _, filename := range st.cfg.INGFiles {
-		tmp_trns, err := INGReaderFunc(filename)
-		fmt.Printf("%s: %d transactions\n", filename, len(tmp_trns))
-		if err != nil {
-			return err
-		}
-		st.trns = append(st.trns, tmp_trns...)
+	ing_reader := INGReader{pdb: st.pdb}
 
+	for _, filename := range st.cfg.INGFiles {
+		st.ReadTransactions(ing_reader, filename)
 	}
 
 	//match and tag transactions
@@ -121,10 +124,39 @@ func (st *SpendTracker) ReadTransactions() error {
 			st.trns[i].Level1Tag = tags[0]
 			st.trns[i].Level2Tag = tags[1]
 		} else {
-			st.trns[i].Level1Tag = "Unknown"
-			st.trns[i].Level1Tag = "Unknown"
+			fmt.Fprintf(os.Stderr, "UNKNOWN: %s %0.2f %0.2f %s\n",
+				trn.Timestamp.Format("02-Jan-2006"),
+				trn.Debit,
+				trn.Credit,
+				st.trns[i].Line)
+			st.trns[i].Level1Tag = UNKNOWN_CATEGORY
+			st.trns[i].Level2Tag = UNKNOWN_SUBCATEGORY
 		}
 	}
+
+	return nil
+
+}
+
+func (st *SpendTracker) ReadTransactions(reader StatementReader, filename string) error {
+
+	tmp_trns, err := reader.CSVReader(filename)
+	fmt.Fprintf(os.Stderr, "%s: %d transactions\n", filename, len(tmp_trns))
+	if err != nil {
+		return err
+	}
+	for _, trn := range tmp_trns {
+		_, exists := st.trnsMap[trn.key()]
+		if !exists {
+			st.trnsMap[trn.key()] = true
+			st.trns = append(st.trns, trn)
+		} else {
+			fmt.Fprintf(os.Stderr, "DUPLICATE: %s, %s\n",
+				trn.Timestamp.Format("02-Jan-2006"),
+				trn.Line)
+		}
+	}
+	
 
 	return nil
 }

@@ -23,6 +23,12 @@ type Transaction struct {
 	Level2Tag    string
 }
 
+type TransactionKey struct {
+	Timestamp    time.Time
+	Line         string
+	Amount       float32
+}
+
 func (t Transaction) String() string {
 
 	return fmt.Sprintf("%s: %s cr %0.2f dt %0.2f [%s] tag1: %s, tag2: %s",
@@ -34,4 +40,16 @@ func (t Transaction) String() string {
 		t.Level1Tag,
 		t.Level2Tag)
 
+}
+
+func (t Transaction) key() TransactionKey {
+	amount := t.Debit
+	if(t.Type == Credit) {
+		amount = t.Credit
+	}
+	return TransactionKey{
+		Timestamp: t.Timestamp, 
+		Line: t.Line,
+		Amount: amount,
+	}
 }
